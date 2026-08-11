@@ -1,0 +1,135 @@
+<!-- Milos Milinkovic 0396/2022 -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pronađi doktora — Aktuelnosti</title>
+<link rel="stylesheet" href="{% static 'css/styles.css' %}">
+<style>
+/* --- News list styling --- */
+.news-controls {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+.news-controls input, .news-controls select {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    font-size: 14px;
+}
+.news-item {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    padding: 16px;
+    border-bottom: 1px solid #e2e8f0;
+    transition: background 0.2s;
+}
+.news-item:hover { background: #f9fafb; }
+.news-content { flex:1; display:flex; flex-direction:column; max-width: calc(100% - 280px); }
+.news-title a { text-decoration:none; color:#1a202c; font-size:22px; font-weight:700; margin-bottom:4px; }
+.news-title a:hover { color:#0b5cff; }
+.news-date { color:#6b7c8c; font-size:13px; margin-bottom:12px; }
+.news-text {
+    color:#2d3748;
+    font-size:15px;
+    line-height:1.5;
+    margin-bottom:8px;
+    display:-webkit-box;
+    -webkit-line-clamp:2; /* maksimalno 3 reda teksta */
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    word-break: break-word;
+}
+.news-image { width:260px; height:180px; object-fit:cover; border-radius:12px; flex-shrink:0; }
+
+@media (max-width: 700px) {
+    .news-item { flex-direction: column; }
+    .news-content { max-width:100%; }
+    .news-image { width:100%; height:180px; }
+}
+</style>
+</head>
+<body>
+{% include "includes/header.html" %}
+
+<main class="container">
+<div class="card">
+    <h1 class="h1" style="margin-bottom:24px;">Aktuelnosti</h1>
+
+    <!-- Filter i sortiranje -->
+    <!-- Filter i sortiranje -->
+<div class="news-controls">
+    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+        <input type="text" id="searchInput" placeholder="Pretraži po naslovu..." value="{{ request.GET.search }}" style="flex:1; min-width:180px;">
+        <select id="sortSelect" style="width:200px;">
+            <option value="datum" {% if request.GET.sort == "datum" %}selected{% endif %}>Sortiraj po datumu</option>
+            <option value="naslov" {% if request.GET.sort == "naslov" %}selected{% endif %}>Sortiraj po naslovu</option>
+        </select>
+    </div>
+</div>
+
+
+    <div id="newsList">
+        {% for vest in vesti %}
+        <div class="news-item" data-title="{{ vest.naslov|lower }}">
+            <div class="news-content">
+                <h3 class="news-title">
+                    <a href="{% url 'aktuelnost_detalj' vest.id %}">{{ vest.naslov }}</a>
+                </h3>
+                <div class="news-date">{{ vest.datum|date:"d.m.Y H:i" }}</div>
+                <p class="news-text">{{ vest.sadrzaj }}</p>
+                <a href="{% url 'aktuelnost_detalj' vest.id %}" style="color:#0b5cff;font-weight:600;">Pročitaj više →</a>
+            </div>
+            {% if vest.slika %}
+            <img src="{{ vest.slika.slika_link.url }}" alt="Aktuelnost" class="news-image">
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+</main>
+
+{% include "includes/footer.html" %}
+
+
+<script>
+// --- Live search i sortiranje ---
+const searchInput = document.getElementById('searchInput');
+const sortSelect = document.getElementById('sortSelect');
+const newsList = document.getElementById('newsList');
+const newsItems = Array.from(newsList.children);
+
+function filterAndSort() {
+    const query = searchInput.value.toLowerCase();
+    const sortBy = sortSelect.value;
+
+    let filtered = newsItems.filter(item => item.dataset.title.includes(query));
+
+    if (sortBy === 'naslov') {
+        filtered.sort((a,b) => a.dataset.title.localeCompare(b.dataset.title));
+    } else {
+        filtered.sort((a,b) => {
+            const dateA = new Date(a.querySelector('.news-date').innerText.split(' ')[0].split('.').reverse().join('-'));
+            const dateB = new Date(b.querySelector('.news-date').innerText.split(' ')[0].split('.').reverse().join('-'));
+            return dateB - dateA; // descending
+        });
+    }
+
+    newsList.innerHTML = '';
+    filtered.forEach(item => newsList.appendChild(item));
+}
+
+// Event listeneri
+searchInput.addEventListener('input', filterAndSort);
+sortSelect.addEventListener('change', filterAndSort);
+</script>
+</body>
+</html>

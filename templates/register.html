@@ -1,0 +1,54 @@
+{## Autor - Davud Nusevic 2022/0076#}
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Log in</title>
+         <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+    </head>
+    <body>
+        <main class="container center" style="height:100vh;">
+            <div class="card" style="max-width:850px;width:100%">
+                <h2 class="h1" style="text-align:center">Registracija</h2>
+
+                <form method="post" id="registration-form" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    {% for field in form %}
+
+{#                  Hack for displaying medical history text area in new line#}
+                    {% if field.label == "Medicinska Istorija" %}
+                        <div class="form-row">
+                            {{ field.label_tag }}
+                        </div>
+                        <div class="form-row">
+                            {{ field }}
+                        </div>
+                    {% else %}
+                    <div class="form-row">
+                        {{ field.label_tag }}
+                        {{ field }}
+                        {% for error in field.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+
+                <div style="margin-top:18px;text-align:center">
+                    <button type="submit" class="button" style="width:100%">Register</button>
+                </div>
+                </form>
+                {% if messages %}
+                    {% for message in messages %}
+                        <div id="login-error" class="error small" style="color:#b30000;margin-top:10px">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </main>
+    </body>
+</html>

@@ -1,0 +1,400 @@
+{# Vuk Luzanin 29/2022 #}
+{% extends "base.html" %}
+{% load static %}
+{% load tz %}
+
+{% block title %}Chat{% endblock %}
+
+{% block content %}
+
+<style>
+:root {
+  --primary:#007bff;
+  --primary-dark:#0067d5;
+  --primary-light:#e5f1ff;
+  --bg-light:#eef3ff;
+  --border:#d7d7d7;
+}
+
+body {
+  background:linear-gradient(135deg, #f0f4ff 0%, #ffffff 80%);
+}
+
+.chat-container {
+  display:flex;
+  height:80vh;
+  margin-top:20px;
+  border-radius:12px;
+  overflow:hidden;
+  background:#fff;
+  box-shadow:0 4px 18px rgba(0,0,0,0.08);
+}
+
+.chat-users {
+  width:30%;
+  background:var(--bg-light);
+  border-right:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+}
+
+.search-input {
+  width:85%;
+  margin:12px auto;
+  padding:10px;
+  border-radius:10px;
+  border:1px solid #bcc7e0;
+  font-size:14px;
+  transition:0.25s;
+}
+.search-input:focus {
+  border-color:var(--primary);
+  box-shadow:0 0 0 3px rgba(0,123,255,0.18);
+}
+
+.user-item {
+  display:flex;
+  padding:12px;
+  gap:12px;
+  align-items:center;
+  text-decoration:none;
+  color:#333;
+  border-bottom:1px solid #e1e1e1;
+  transition:background 0.2s, padding-left 0.15s;
+}
+.user-item:hover { background:#dce8ff; padding-left:18px; }
+
+.user-avatar {
+  width:45px;
+  height:45px;
+  border-radius:50%;
+  object-fit:cover;
+  border:2px solid #fff;
+}
+.online-dot {
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:#28c840;
+  border:2px solid #fff;
+  position:absolute;
+  bottom:2px; right:2px;
+}
+.avatar-wrapper { position:relative; }
+
+.user-selected {
+  background:var(--primary);
+  color:white !important;
+  font-weight:600;
+}
+
+.chat-right {
+  flex:1;
+  display:flex;
+  flex-direction:column;
+}
+
+.chat-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px 18px;
+  font-size:18px;
+  border-bottom:1px solid var(--border);
+  background:var(--primary);
+  color:white;
+}
+
+.status-text {
+  font-size:12px;
+  opacity:0.8;
+}
+
+.chat-box {
+  flex:1;
+  overflow-y:auto;
+  padding:20px;
+  background:#fafafa;
+}
+
+.empty-chat-msg {
+  text-align:center;
+  margin-top:40%;
+  color:#8a8a8a;
+  font-size:15px;
+  opacity:0.7;
+}
+
+.bubble {
+  padding:12px 16px;
+  border-radius:20px;
+  max-width:70%;
+  margin-bottom:16px;
+  word-break:break-word;
+  background:var(--primary-light);
+  box-shadow:0 3px 10px rgba(0,0,0,0.06);
+  animation: fadeIn 0.15s ease-in;
+}
+.bubble.me {
+  background:var(--primary);
+  color:white;
+  margin-left:auto;
+}
+.bubble.other {
+  background:#e5e5e5;
+  margin-right:auto;
+}
+
+.bubble a {
+  font-size:13px;
+  margin-top:6px;
+  display:inline-block;
+  text-decoration:none;
+}
+
+#chat-form {
+  display:flex;
+  gap:10px;
+  padding:12px;
+  border-top:1px solid var(--border);
+  background:#fff;
+}
+#chat-form input[type="text"] {
+  flex:1;
+  border-radius:12px;
+  padding:10px 12px;
+  border:1px solid #c7c7c7;
+  font-size:15px;
+}
+
+#chat-form button {
+  background:var(--primary);
+  border:none;
+  border-radius:12px;
+  color:white;
+  width:44px;
+  height:44px;
+  font-size:18px;
+  cursor:pointer;
+  transition:0.15s;
+}
+#chat-form button:hover { background:var(--primary-dark); transform:scale(1.06); }
+
+@keyframes fadeIn {
+  from { opacity:0; transform:translateY(5px); }
+  to { opacity:1; transform:translateY(0); }
+}
+</style>
+
+
+<div class="chat-container">
+
+  <div class="chat-users">
+      <input type="text" id="search-user" class="search-input" placeholder="🔎 Pretraži korisnike...">
+
+      <div id="users-list" style="overflow-y:auto; flex:1;">
+        {% for u in other_users %}
+        <a href="{% url 'chat' u.id %}" class="user-item {% if selected_user and selected_user.id == u.id %}user-selected{% endif %}">
+          {% if u.slika %}
+          <div class="avatar-wrapper">
+            <img src="{{ u.slika.slika_link.url }}" class="user-avatar">
+            <span class="online-dot"></span>
+          </div>
+          {% endif %}
+          <div class="user-info">
+            <strong>{{ u.ime }} {{ u.prezime }}</strong>
+            <small>{{ u.role.name }}</small>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+  </div>
+
+  <div class="chat-right">
+    {% if selected_user %}
+
+    <div class="chat-header">
+      <span>{{ selected_user.ime }} {{ selected_user.prezime }}</span>
+      <span class="status-text">● </span>
+    </div>
+     <div id="typing-indicator" style="padding:6px 15px; font-size:14px; color:#555; display:none;">
+    ✍️ {{ selected_user.ime }} kuca...
+    </div>
+
+    <div id="chat-box" class="chat-box">
+      {% if not messages %}
+      <p class="empty-chat-msg">Počnite razgovor 👋</p>
+      {% endif %}
+
+      {% for msg in messages %}
+      <div class="bubble {% if msg.posiljalac == request.user %}me{% else %}other{% endif %}">
+        {{ msg.tekst }}
+        {% if msg.recept %}
+        📎 <a href="{{ msg.recept.slika.slika_link.url }}" target="_blank">
+          {{ msg.recept.slika.slika_link.name|slice:"-18:" }}
+        </a>
+        {% endif %}
+        <div style="font-size:10px;margin-top:4px;text-align:right;">
+          {{ msg.poslato|localtime|date:"H:i d.m.Y" }}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <form id="chat-form">
+        {% csrf_token %}
+        <input type="text" id="message-input" placeholder="Kucajte poruku..." autofocus>
+        {% if request.user.role.name|lower == "doktor" %}
+        <input type="file" id="recept-file-input" name="recept_file" accept=".jpg,.png" style="width:110px;">
+        {% endif %}
+        <button type="submit">➤</button>
+    </form>
+
+    {% else %}
+      <p class="empty-chat-msg">Izaberite korisnika 👈</p>
+    {% endif %}
+  </div>
+
+</div>
+
+
+<script>
+let typingTimeout;
+let isTyping = false;
+
+document.addEventListener("DOMContentLoaded", function() {
+    const searchInput = document.getElementById("search-user");
+    const usersList = document.getElementById("users-list");
+    const selectedUserId = "{{ selected_user.id|default:'' }}";
+
+    searchInput.addEventListener("input", function() {
+        const query = this.value.trim();
+        fetch("{% url 'chat_user_search' %}?q=" + encodeURIComponent(query))
+            .then(response => response.json())
+            .then(data => {
+                usersList.innerHTML = "";
+                data.users.forEach(u => {
+                    const a = document.createElement("a");
+                    a.href = `/chat/${u.id}/`;
+                    a.classList.add("user-item");
+                    if(selectedUserId && selectedUserId == u.id.toString()) a.classList.add("user-selected");
+                    const imgHtml = u.slika_url ? `<img src="${u.slika_url}" class="user-avatar">` : "";
+                    const lastLogin = u.last_login || "-";
+                    a.innerHTML = `
+                        ${imgHtml}
+                        <div class="user-info">
+                            <strong>${u.ime} ${u.prezime}</strong>
+                            <small>${u.role} | ${lastLogin}</small>
+                        </div>
+                    `;
+                    usersList.appendChild(a);
+                });
+            })
+            .catch(err => console.error(err));
+    });
+
+    {% if selected_user %}
+    const messageInput = document.getElementById("message-input");
+    const chatBox = document.getElementById("chat-box");
+    const chatForm = document.getElementById("chat-form");
+    const chatHeader = document.querySelector(".chat-header");
+    const receptFileInput = document.getElementById("recept-file-input");
+    const roomName = "{{ selected_user.id }}";
+    const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+    const chatSocket = new WebSocket(wsScheme + '://' + window.location.host + '/ws/chat/' + roomName + '/');
+
+    const typingText = "💬 {{ selected_user.ime }} kuca...";
+
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+
+        if (data.typing !== undefined) {
+            if (data.sender_id != {{ request.user.id }}) {
+                if (data.typing === true) {
+                    chatHeader.textContent = typingText;
+                } else {
+                    chatHeader.textContent = "{{ selected_user.ime }} {{ selected_user.prezime }}";
+                }
+            }
+            return;
+        }
+
+        const bubble = document.createElement('div');
+        bubble.classList.add('bubble', data.sender_id == {{ request.user.id }} ? 'me' : 'other');
+
+        let fileHtml = "";
+        if(data.file_url && data.file_name){
+            const fileName = data.file_name.split('/').pop();
+            fileHtml = `<div><a href="${data.file_url}" target="_blank">📎 ${fileName}</a></div>`;
+        }
+
+        bubble.innerHTML = `
+            ${data.message || ""}
+            ${fileHtml}
+            <div style="font-size:10px;text-align:right;margin-top:4px;">
+                ${data.timestamp}
+            </div>
+        `;
+        chatBox.appendChild(bubble);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    };
+
+    chatSocket.onclose = function(e) {
+        console.warn('Chat socket closed unexpectedly');
+    };
+
+    function sendTyping(status) {
+        chatSocket.send(JSON.stringify({ typing: status }));
+    }
+
+    messageInput.addEventListener("input", function() {
+        if (!isTyping) {
+            isTyping = true;
+            sendTyping(true);
+        }
+
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            isTyping = false;
+            sendTyping(false);
+        }, 1200);
+    });
+
+    chatForm.addEventListener("submit", function(e) {
+        e.preventDefault();
+        const message = messageInput.value.trim();
+
+        clearTimeout(typingTimeout);
+        sendTyping(false);
+        isTyping = false;
+
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        formData.append('pacijent_id', "{{ selected_user.id }}");
+        if(message) formData.append('message', message);
+        if(receptFileInput && receptFileInput.files.length > 0){
+            formData.append('recept_file', receptFileInput.files[0]);
+        }
+
+        fetch("{% url 'upload_recept' %}", { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if(!data.success){
+                alert("Greška pri slanju: " + (data.error || ""));
+                return;
+            }
+
+            messageInput.value = "";
+            if(receptFileInput) receptFileInput.value = "";
+        })
+        .catch(err => console.error(err));
+    });
+    {% endif %}
+});
+</script>
+
+
+
+{% endblock %}

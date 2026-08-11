@@ -1,0 +1,57 @@
+{#Autor - Davud Nusevic 2022/0076#}
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Log in</title>
+     <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+</head>
+<body>
+    <main class="container center" style="height:100vh;">
+        <div class="card" style="max-width:340px;width:100%">
+            <h2 class="h1" style="text-align:center">Log in</h2>
+            <form method="post" id="login-form">
+                {% csrf_token %}
+                {% for field in form %}
+                    <div class="form-row">
+                        {{ field.label_tag }}
+                        {{ field }}
+                        {% for error in field.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+
+                <div style="margin-top:18px;text-align:center">
+                    <button type="submit" class="button" style="width:100%">Log in</button>
+                </div>
+            </form>
+            {% if messages %}
+                {% for message in messages %}
+                    <div id="login-error" class="error small" style="color:#b30000;margin-top:10px">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        <!-- 👇 Dodaj ovaj deo ispod -->
+<div style="margin-top:16px; text-align:center;">
+    <a href="/accounts/password_reset/" class="small" style="color:#007bff; text-decoration:none; margin-left:10px;">
+       Zaboravljena sifra ?
+    </a>
+    <br>
+    <p class="small">Nemaš nalog?</p>
+    <a href="{% url 'doctor_register_view' %}" class="small" style="color:#007bff; text-decoration:none; margin-right:10px;">
+        Registruj se kao doktor
+    </a>
+    |
+    <a href="{% url 'register_view' %}" class="small" style="color:#007bff; text-decoration:none; margin-left:10px;">
+        Registruj se kao pacijent
+    </a>
+</div>
+
+        </div>
+    </main>
+</body>
+</html>

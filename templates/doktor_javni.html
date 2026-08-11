@@ -1,0 +1,542 @@
+<!--Mateja Plazinic 2022/0335, Milos Milinkovic 2022/0396-->
+{% load static i18n %}
+<!doctype html>
+<html lang="sr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Profil doktora - {{ lekar.user.ime }} {{ lekar.user.prezime }}</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <style>
+        .appointment-section { padding: 20px; background: #f9fafb; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+        .appointment-section h3 { margin-bottom: 20px; color: #1f2937; }
+        .date-tabs { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; }
+        .date-tab {
+    display: inline-block;
+    padding: 6px 10px;
+    margin: 2px;
+    min-width: 80px; /* minimalna širina da dugmad budu uredna */
+    text-align: center;
+    white-space: nowrap; /* sprečava prelamanje */
+    overflow: hidden;
+    text-overflow: ellipsis; /* skraćuje tekst sa ... ako je predugačak */
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+    font-size: 14px;
+}
+.date-tab.active {
+    background-color: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+.slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .slot { padding: 12px; background: #fff; border: 2px solid #d1d5db; border-radius: 8px; text-align: center; cursor: pointer; font-weight: 500; transition: .3s; }
+        .slot:hover { border-color: #3b82f6; background: #eff6ff; transform: translateY(-2px); }
+        .slot.selected { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59,130,246,.3); }
+        .slot.unavailable { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; opacity: .6; }
+        .duration-options { display: flex; gap: 10px; margin-bottom: 15px; }
+        .duration-option { flex: 1; padding: 10px; background: #f9fafb; border: 2px solid #d1d5db; border-radius: 6px; text-align: center; cursor: pointer; font-weight: 500; }
+        .duration-option:hover, .duration-option.selected { background: #3b82f6; color: white; border-color: #3b82f6; }
+        .selected-time { background: #dbeafe; padding: 10px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #3b82f6; }
+        .button { padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 500; }
+        .button:hover:not(:disabled) { background: #2563eb; }
+        .button:disabled { background: #9ca3af; cursor: not-allowed; }
+        .error-message { color: #dc2626; background: #fee2e2; padding: 8px; border-radius: 6px; text-align: center; margin: 10px 0; }
+        @media (max-width: 768px) {
+            .slot-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+            .date-tab { padding: 8px 12px; font-size: 14px; min-width: 100px; }
+        }
+.review-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.star-rating {
+  display: flex;
+  flex-direction: row-reverse; /* ključna linija */
+  gap: 4px;
+}
+
+.star-rating input {
+  display: none;
+}
+
+.star-rating label {
+  font-size: 26px;
+  color: #ccc;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+/* Ovde je magija: sada koristimo row-reverse + ~ selektor */
+.star-rating label:hover,
+.star-rating label:hover ~ label,
+.star-rating input:checked ~ label {
+  color: gold;
+}
+
+textarea {
+  width: 250px;
+  height: 60px;
+  resize: none;
+  padding: 6px;
+  font-size: 14px;
+}
+.modal {
+  display: none; /* skriven po defaultu */
+  position: fixed;
+  z-index: 1000;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  background-color: rgba(0,0,0,0.4);
+  justify-content: center;
+  align-items: center;
+}
+
+.modal.show {
+  display: flex;
+  animation: fadeIn 0.3s ease-in-out;
+}
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  animation: slideUp 0.3s ease;
+}
+
+.close-btn {
+  float: right;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #555;
+}
+
+.close-btn:hover {
+  color: #000;
+}
+
+
+
+    </style>
+</head>
+<body>
+    {% include "includes/header.html" %}
+
+    <main class="container">
+
+        <!-- Profil doktora -->
+        <div class="card" id="doctor-profile">
+            <div style="display:flex; align-items:center; gap:20px;">
+                <img src="{{ lekar.user.slika.slika_link.url|default:'/static/images/default-profile.png' }}"
+                     alt="{{ lekar.user.ime }} {{ lekar.user.prezime }}"
+                     style="width:100px; height:100px; border-radius:50%; object-fit:cover;">
+                <div style="flex:1">
+                    <h2>{{ lekar.user.ime }} {{ lekar.user.prezime }}</h2>
+                    <div class="small">
+                        {{ lekar.specijalizacija|default:'Nema specijalizacije' }} -
+                        <span class="link">{{ lekar.klinika.naziv|default:'Nema klinike' }}</span>
+                    </div>
+                    <p>{{ lekar.biografija|default:'Nema biografije' }}</p>
+                </div>
+                {% if request.user.is_authenticated %}
+                <button class="button" id="btn-oceni" >
+                                Oceni lekara
+                </button>
+                {% endif %}
+                {% if user.is_authenticated and user.role.name == 'pacijent' %}
+                    {% if omiljeni %}
+                        <button class="button" disabled>U omiljenim</button>
+                    {% else %}
+                        <button class="button" id="btn-omiljeni" data-lekar-id="{{ lekar.id }}">
+                                Dodaj u omiljene
+                        </button>
+                    {% endif %}
+                {% endif %}
+                </div>
+        </div>
+
+
+        <p id="review-status" style="text-align:center; margin-top:10px;"></p>
+
+
+<div id="review-modal" class="modal">
+  <div class="modal-content">
+    <span class="close-btn">&times;</span>
+    <h3 style="margin-bottom: 10px;">Oceni lekara</h3>
+
+    <form id="review-form" method="POST" action="{% url 'dodaj_recenziju' %}">
+      {% csrf_token %}
+      <input type="hidden" name="lekar_id" value="{{ lekar.id }}">
+
+      <div class="review-row">
+        <div class="star-rating">
+          {% for i in "54321"|make_list %}
+            <input type="radio" id="star{{ i }}" name="ocena" value="{{ i }}">
+            <label for="star{{ i }}" title="{{ i }} zvezdica">★</label>
+          {% endfor %}
+        </div>
+
+        <textarea name="komentar" placeholder="Napiši komentar (opciono)"></textarea>
+      </div>
+
+      <button type="submit" class="button" style="margin-top:10px;">Pošalji recenziju</button>
+    </form>
+    <p id="review-status" style="text-align:center; margin-top:10px;"></p>
+  </div>
+</div>
+        <!-- Recenzije -->
+        <div class="card" id="doctor-reviews" style="margin-top:24px">
+            <h3 class="h1">Recenzije ({{ prosecna_ocena|floatformat:1 }})</h3>
+            {% if recenzije %}
+                {% for r in recenzije %}
+                    <div class="card">
+                        <strong>{{ r.pacijent.ime }} {{ r.pacijent.prezime }}</strong>
+                        <div class="small">{{ r.ocena }} stars</div>
+                        <p>{{ r.komentar|default:'Nema komentara' }}</p>
+                    </div>
+                {% endfor %}
+                <div class="pagination" style="text-align:center; margin-top:16px;">
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" class="button">Prethodna</a>
+                    {% endif %}
+                    <span class="small">Stranica {{ page_obj.number }} od {{ page_obj.paginator.num_pages }}</span>
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" class="button">Sledeća</a>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="small">Nema recenzija.</div>
+            {% endif %}
+        </div>
+
+        {% if can_book %}
+        <div class="card appointment-section" style="margin-top:24px">
+            <h3 class="h1">Zakaži termin</h3>
+
+            {% if error %}
+                <div class="error-message">{{ error }}</div>
+            {% endif %}
+
+            {% if slobodni_periodi %}
+                <form method="POST" id="booking-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="zakazi">
+                    <input type="hidden" id="selected-pocetak" name="pocetak">
+                    <input type="hidden" id="selected-trajanje" name="trajanje" value="20">
+
+                    <!-- Datumi -->
+                                   <div class="date-tabs">
+                    {% for p in slobodni_periodi %}
+                        <div class="date-tab {% if forloop.first %}active{% endif %}"
+                             data-date="{{ p.datum|date:'Y-m-d\\TH:i:s' }}">
+                            {{ p.datum|date:'l, d.m.Y' }}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                    <div class="slot-grid" id="slot-grid"></div>
+
+                    <div id="selected-time-display" class="selected-time" style="display:none;">
+                        <strong>Izabrano:</strong> <span id="selected-time-text"></span>
+                    </div>
+
+                    <div class="duration-options">
+                        <div class="duration-option selected" data-duration="20">20 min</div>
+                        <div class="duration-option" data-duration="40">40 min</div>
+                        <div class="duration-option" data-duration="60">60 min</div>
+                    </div>
+                    <p style="margin-top:8px;">Cena: <span id="prikaz_cene">{{ cena_pregleda }} RSD</span></p>
+                    <div style="text-align:right">
+                        <button type="submit" class="button" id="submit-button" disabled>Zakaži termin</button>
+                    </div>
+                </form>
+            {% else %}
+                <div class="small">Nema slobodnih termina u narednih 7 dana.</div>
+            {% endif %}
+        </div>
+    {% else %}
+<div class="card appointment-section" style="margin-top:24px">
+    <h3 class="h1">Zakaži termin</h3>
+    <div class="small">Morate biti ulogovani kao pacijent da biste mogli da zakažete termin.</div>
+    <br>
+    <a href="{% url 'login_view' %}" class="button" id="submit-button">Login</a>
+</div>
+
+{% endif %}
+    </main>
+
+    {% include "includes/footer.html" %}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const prikazCene = document.getElementById('prikaz_cene');
+    const cenaOsnovna = parseFloat('{{ cena_pregleda }}'); // iz context-a
+
+    const dateTabs = Array.from(document.querySelectorAll('.date-tab'));
+    const slotGrid = document.getElementById('slot-grid');
+    const selectedTimeDisplay = document.getElementById('selected-time-display');
+    const selectedTimeText = document.getElementById('selected-time-text');
+    const durationOptions = Array.from(document.querySelectorAll('.duration-option'));
+    const submitButton = document.getElementById('submit-button');
+    const selectedPocetakInput = document.getElementById('selected-pocetak');
+    const selectedTrajanjeInput = document.getElementById('selected-trajanje');
+
+    // === PODACI IZ VIEW-A ===
+    const periodsByDate = {};
+    {% for p in slobodni_periodi %}
+        {% if p.datum %}
+            (function(){
+                const fullDate = '{{ p.datum|date:"Y-m-d\\TH:i:s" }}';
+                const dateKey = fullDate.split('T')[0];
+                if (!periodsByDate[dateKey]) periodsByDate[dateKey] = [];
+                periodsByDate[dateKey].push({
+                    pocetak: '{{ p.pocetak|time:"H:i" }}',
+                    kraj: '{{ p.kraj|time:"H:i" }}',
+                    max_trajanje: {{ p.trajanje_max }}
+                });
+            })();
+        {% endif %}
+    {% endfor %}
+
+    // === ZAUZETI TERMINI (iz view-a) ===
+    const zauzetiTermini = {{ zauzeti_termini_js|safe }};
+
+    let selectedSlot = null;
+    let selectedDuration = 20;
+
+    function updateCena() {
+        const multiplikator = selectedDuration / 20; // ako 20 min = osnovna cena
+        const ukupnaCena = cenaOsnovna * multiplikator;
+        prikazCene.textContent = ukupnaCena + ' RSD';
+    }
+
+
+    // === GENERISANJE SLOTOVA ===
+    function generateSlots(dateKey) {
+        if (!slotGrid) return;
+        slotGrid.innerHTML = '';
+        const periods = periodsByDate[dateKey] || [];
+        const slots = [];
+
+        periods.forEach(p => {
+            const [ph, pm] = p.pocetak.split(':').map(Number);
+            const [kh, km] = p.kraj.split(':').map(Number);
+            let current = new Date(2025, 0, 1, ph, pm);
+            const end = new Date(2025, 0, 1, kh, km);
+
+            while (current < end) {
+                const slotEnd = new Date(current.getTime() + selectedDuration * 60000);
+                if (slotEnd > end) break;
+
+                const slotStartStr = `${dateKey}T${current.toTimeString().slice(0,5)}`;
+                const slotEndStr = `${dateKey}T${slotEnd.toTimeString().slice(0,5)}`;
+
+                // Provera preklapanja sa zauzetim terminima
+                const preklapaSe = zauzetiTermini.some(t => {
+                    if (!t.start.startsWith(dateKey)) return false;
+                    return !(slotEndStr <= t.start || slotStartStr >= t.end);
+                });
+
+                if (!preklapaSe && p.max_trajanje >= selectedDuration) {
+                    const timeStr = current.toTimeString().slice(0,5);
+                    const endStr = slotEnd.toTimeString().slice(0,5);
+                    slots.push({
+                        start: timeStr,
+                        end: endStr,
+                        full: slotStartStr
+                    });
+                }
+
+                current.setMinutes(current.getMinutes() + 20);
+            }
+        });
+
+        // Sortiraj slotove
+        slots.sort((a, b) => a.start.localeCompare(b.start));
+
+        if (slots.length === 0) {
+            slotGrid.innerHTML = '<div class="small" style="grid-column:1/-1;text-align:center;padding:20px;color:#6b7280;">Nema slobodnih termina za izabrano trajanje.</div>';
+            updateSubmitButton();
+            return;
+        }
+
+        // Prikaz slobodnih slotova
+        slots.forEach(s => {
+            const el = document.createElement('div');
+            el.className = 'slot';
+            el.dataset.datetime = s.full;
+            el.innerHTML = `<div>${s.start}</div><div style="font-size:12px;opacity:.8">-${s.end}</div>`;
+            el.addEventListener('click', () => selectSlot(el, s));
+            slotGrid.appendChild(el);
+        });
+
+        // === PRIKAZ ZAUZETIH KAO SIVIH (korisniku jasnije) ===
+        zauzetiTermini.forEach(t => {
+            if (!t.start.startsWith(dateKey)) return;
+            const startTime = t.start.split('T')[1].slice(0,5);
+            const endTime = t.end.split('T')[1].slice(0,5);
+            const el = document.createElement('div');
+            el.className = 'slot unavailable';
+            el.innerHTML = `
+                <div>${startTime}</div>
+                <div style="font-size:12px;opacity:.8">-${endTime}</div>
+                <div style="font-size:10px;margin-top:4px;color:#dc2626;">Zauzeto</div>
+            `;
+            slotGrid.appendChild(el);
+        });
+
+        updateSubmitButton();
+    }
+
+    // === SELEKCIJA ===
+    function selectSlot(el, slot) {
+        document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedSlot = slot;
+        const d = new Date(slot.full);
+        const endTime = new Date(d.getTime() + selectedDuration * 60000).toTimeString().slice(0,5);
+        selectedTimeText.textContent = `${d.toLocaleDateString('sr-Latn-RS', {weekday:'long', day:'numeric', month:'numeric', year:'numeric'})} ${slot.start}-${endTime} (${selectedDuration} min)`;
+        selectedTimeDisplay.style.display = 'block';
+        selectedPocetakInput.value = slot.full;
+        selectedTrajanjeInput.value = selectedDuration;
+        updateSubmitButton();
+    }
+
+    // === TRAJANJE ===
+    durationOptions.forEach(opt => {
+        opt.addEventListener('click', () => {
+            durationOptions.forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            selectedDuration = parseInt(opt.dataset.duration, 10);
+            updateCena();
+            const active = document.querySelector('.date-tab.active');
+            if (active) generateSlots(active.dataset.date.split('T')[0]);
+            selectedSlot = null;
+            selectedTimeDisplay.style.display = 'none';
+            selectedPocetakInput.value = '';
+            updateSubmitButton();
+        });
+    });
+
+    // === DATUM ===
+    dateTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            dateTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            selectedSlot = null;
+            selectedTimeDisplay.style.display = 'none';
+            selectedPocetakInput.value = '';
+            generateSlots(tab.dataset.date.split('T')[0]);
+        });
+    });
+
+    // === DUGME ===
+    function updateSubmitButton() {
+        submitButton.disabled = !selectedSlot;
+    }
+
+    // === SUBMIT ===
+    document.getElementById('booking-form').addEventListener('submit', e => {
+        if (!selectedSlot) {
+            e.preventDefault();
+            alert('Izaberite termin.');
+            return false;
+        }
+        if (!confirm(`Zakazati:\n${selectedTimeText.textContent}`)) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    // === INICIJALIZACIJA ===
+    if (dateTabs.length > 0) {
+        const firstTab = dateTabs[0];
+        if (!firstTab.classList.contains('active')) firstTab.classList.add('active');
+        generateSlots(firstTab.dataset.date.split('T')[0]);
+    }
+
+    const btnOmiljeni = document.getElementById('btn-omiljeni');
+    if (btnOmiljeni) {
+        btnOmiljeni.addEventListener('click', () => {
+            const lekarId = btnOmiljeni.dataset.lekarId;
+            fetch(`/dodaj-omiljene/${lekarId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Accept': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    btnOmiljeni.textContent = 'U omiljenim';
+                    btnOmiljeni.disabled = true;
+                } else if (data.status === 'exists') {
+                    alert(data.message);
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(err => console.error(err));
+        });
+    }
+
+});
+document.getElementById('review-form').addEventListener('submit', async function(e) {
+  e.preventDefault(); // spreči reload
+
+  const form = e.target;
+  const formData = new FormData(form);
+
+  const response = await fetch(form.action, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+    },
+    body: formData
+  });
+
+  const data = await response.json();
+
+  const status = document.getElementById('review-status');
+  if (data.status === 'ok') {
+    status.innerHTML = `✅ Hvala! Vaša ocena: ${data.moja_ocena || formData.get('ocena')}/5`;
+
+    // ✨ Sačekaj trenutak i onda osveži stranicu
+    setTimeout(() => {
+      location.reload();
+    }, 1000); // 1 sekunda pauze da korisnik vidi poruku
+  } else {
+    status.innerHTML = `⚠️ ${data.message || 'Došlo je do greške.'}`;
+  }
+});
+const modal = document.getElementById('review-modal');
+const btnOceni = document.getElementById('btn-oceni');
+const closeBtn = document.querySelector('.close-btn');
+
+btnOceni.addEventListener('click', () => {
+  modal.classList.add('show');
+});
+
+closeBtn.addEventListener('click', () => {
+  modal.classList.remove('show');
+});
+
+window.addEventListener('click', (e) => {
+  if (e.target === modal) {
+    modal.classList.remove('show');
+  }
+});
+</script>
+</body>
+</html>

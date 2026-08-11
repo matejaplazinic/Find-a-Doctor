@@ -1,0 +1,226 @@
+{#Autor - Davud Nusevic 2022/0076#}
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Log in</title>
+         <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+        <style>
+        form {
+            display: inline;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            cursor: default;
+        }
+
+        th.sortable {
+            cursor: pointer;
+        }
+
+        th {
+            background-color: #f4f4f4;
+            position: sticky;
+            top: 0;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .button {
+            padding: 6px 12px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .tag-warning {
+            background: #ffcccc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .tag-success {
+            background: #ccffcc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filters input,
+        .filters select {
+            padding: 5px;
+            font-size: 14px;
+        }
+    </style>
+    </head>
+    <body>
+    {% include "includes/header.html" %}
+        <main class="container">
+            <div class="card">
+                <h2 class="h1">Administrator Panel</h2>
+                <div id="admin-functions">
+                    <form method="get">
+                     {% csrf_token %}
+                    <button class="button" type="submit" name="action" value="doctors">
+                        Verifikacija lekara i klinika
+                        <span></span></button>
+                    </form>
+
+                    <form method="get">
+                     {% csrf_token %}
+                    <button class="button" type="submit" name="action" value="news">
+                        Pregled vesti
+                        <span></span>
+                    </button>
+                    </form>
+
+                </div>
+            </div>
+            <div id="admin-content" class="card" style="margin-top:20px;">
+
+                {% if doctors is not None and clinics is not None %}
+                    <h3>Verifikacija lekara i klinika</h3>
+                    <h4>Lekari</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Ime</th>
+                                <th>Specijalizacija</th>
+                                <th>Klinika</th>
+                                <th>Dokumenti</th>
+                                <th>Akcije</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lekar, docs in doctors %}
+                            <tr>
+                                <td>{{  lekar.id }}</td>
+                                <td>{{  lekar.user.ime }} {{ lekar.user.prezime }}</td>
+                                <td>{{ lekar.specijalizacija }}</td>
+                                <td>{{ lekar.klinika.naziv }}</td>
+                                <td>
+                                     {% for doc in docs %}
+                                        <a class="link" href="{{ doc.file.url }}" target="_blank">{{ doc.file.name }}</a>{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                <form action="{% url 'verify_doctor' lekar.id %}" method="post">
+                                    {% csrf_token %}
+                                    <button type="submit" class="button">Verify</button>
+                                </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <h4>Klinike</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Naziv</th>
+                                <th>Adresa</th>
+                                <th>Dokumenti</th>
+                                <th>Akcije</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for clinic, docs in clinics %}
+                        <tr>
+                            <td>{{ clinic.id }}</td>
+                            <td>{{ clinic.naziv }}</td>
+                            <td>{{ clinic.adresa }}</td>
+                            <td>
+                                {% for doc in docs %}
+                                    <a class="link" href="{{ doc.file.url }}" target="_blank">{{ doc.file.name }}</a>{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </td>
+                            <td> <form action="{% url 'verify_clinic' clinic.id %}" method="post">
+                                    {% csrf_token %}
+                                    <button type="submit" class="button">Verify</button>
+                                </form></td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+
+                {% endif %}
+
+                {% if news is not None %}
+                    <h2>Upravljanje vijestima</h2>
+
+                    <button id="addNewsBtn">➕ Dodaj vijest</button>
+                    <div id="newsFormContainer" style="display:none; margin-top:20px;">
+                      <h3>Nova vijest</h3>
+                      <form id="newsForm" action="{% url 'admin_news_upload' %}" method="post" enctype="multipart/form-data">
+                          {% csrf_token %}
+                          {{ form.as_p }}
+                          <button type="submit">Objavi vijest</button>
+                      </form>
+                    </div>
+
+                    <table border="1" cellpadding="8" cellspacing="0" style="margin-top:20px; width:100%;">
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Naslov</th>
+                          <th>Datum</th>
+                          <th>Slika</th>
+                          <th>Link</th>
+                          <th>Akcije</th>
+                        </tr>
+                      </thead>
+                    <tbody>
+                        {% for n in news %}
+                        <tr>
+                            <td>{{ n.id }}</td>
+                            <td>{{ n.naslov }}</td>
+                            <td>{{ n.datum  }}</td>
+                            <td> <img src="{{ n.slika.slika_link.url }}" style="width:60px;height:40px;object-fit:cover;"> </td>
+                            <td> <a href="{% url 'aktuelnost_detalj' n.id %}">Otvori</a></td>
+                            <td> <form action="{% url 'verify_news' n.id %}" method="post">
+                                    {% csrf_token %}
+                                    <button type="submit" class="button">Verify</button>
+                                </form></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    </table>
+                {% endif  %}
+
+            </div>
+        </main>
+    {% include "includes/footer.html" %}
+
+    <script>
+        document.getElementById("addNewsBtn").addEventListener("click", () => {
+            const formContainer = document.getElementById("newsFormContainer");
+            formContainer.style.display = formContainer.style.display === "none" ? "block" : "none";
+          });
+    </script>
+    </body>
+</html>

@@ -1,0 +1,28 @@
+<!-- Milos Milinkovic 0396/2022 -->
+{% extends 'base.html' %}
+
+{% block title %}{{ vest.naslov }} - Pronađi doktora{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 style="margin-bottom:8px;">{{ vest.naslov }}</h2>
+    <div class="small" style="margin-bottom:12px;color:#6b7c8c;">{{ vest.datum|date:"d.m.Y H:i" }}</div>
+
+    {% if vest.slika %}
+        <img src="{{ vest.slika.slika_link.url }}" alt="{{ vest.naslov }}"
+             style="width:740px;max-width:100%;height:auto;object-fit:cover;border-radius:14px;display:block;margin:0 auto 18px auto;">
+    {% endif %}
+
+    <p style="font-size:18px;line-height:1.6;">{{ vest.sadrzaj }}</p>
+    <div style="margin-top:18px;font-size:15px;color:#6b7c8c;">
+        Objavio:
+        {% if doktor %}
+            <a href="{% url 'doktor_javni' doktor.id %}">
+                Dr. {{ vest.autor.ime }} {{ vest.autor.prezime }}
+            </a>
+        {% else %}
+            Admin {{ vest.autor.ime }} {{ vest.autor.prezime }}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

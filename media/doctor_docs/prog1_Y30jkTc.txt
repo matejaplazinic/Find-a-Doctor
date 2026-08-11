@@ -1,0 +1,13 @@
+        S1 = 2
+        S2 = 3
+        K = 4
+        ORG 8
+        IN N
+        MOV S1, 0
+        MOV S2, 0
+PETLJA: ADD S1, S1, N
+        MUL K, N, N
+        ADD S2, S2, K
+        SUB N, N, 1
+        BGT N, 0, PETLJA
+        STOP S1, S2

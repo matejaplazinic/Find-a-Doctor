@@ -1,0 +1,180 @@
+<!-- Milos Milinkovic 0396/2022 -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pronađi doktora</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; margin:0; background:#f8f9fa; color:#333; }
+        a { text-decoration:none; color:#007bff; }
+        a:hover { text-decoration:underline; }
+
+        .container { max-width:1200px; margin:0 auto; padding:20px; display:flex; gap:20px; }
+        .main-content { flex:3; }
+        .sidebar { flex:1; }
+
+        .hero { background:#e9f1ff; padding:40px; border-radius:12px; margin-bottom:20px; text-align:center; }
+        .hero h1 { font-size:32px; margin-bottom:10px; font-weight:700; }
+        .hero p { font-size:18px; margin-bottom:20px; color:#555; }
+        .hero button, .hero a.button {
+            padding:12px 24px; font-size:16px; background:#007bff;
+            color:white; border:none; border-radius:6px; cursor:pointer;
+            display:inline-block;
+        }
+        .hero a.button:hover { background:#0056b3; }
+
+        .news-grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); gap:20px; }
+        .news-card { background:white; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,0.1); display:flex; flex-direction:column; }
+        .news-card img { width:100%; height:180px; object-fit:cover; }
+        .news-card-content { padding:15px; flex:1; display:flex; flex-direction:column; }
+        .news-card-content h3 { margin:0 0 10px; font-size:20px; }
+        .news-card-content p { flex:1; font-size:14px; margin-bottom:15px; color:#555; }
+        .news-card-content .date { font-size:12px; color:#999; margin-bottom:10px; }
+        .news-card-content a.button { align-self:flex-start; background:#007bff; color:white; padding:8px 16px; border-radius:6px; font-size:14px; }
+        .news-card-content a.button:hover { background:#0056b3; }
+
+        .sidebar-section { background:white; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.05); margin-bottom:20px; }
+        .sidebar-section h4 { margin-top:0; margin-bottom:15px; font-size:18px; border-bottom:1px solid #eee; padding-bottom:5px; }
+
+        @media(max-width:900px) { .container { flex-direction:column; } .sidebar { order:-1; } }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+{% include "includes/header.html" %}
+
+<div class="container">
+
+    <!-- Glavni sadržaj -->
+    <div class="main-content">
+
+        <!-- Hero sekcija -->
+        <div class="hero">
+            {% if user_type == "doktor" %}
+                <h1>Dobrodošli nazad, Dr. {{ user.ime }} {{ user.prezime }}</h1>
+                <p>Upravljajte svojim terminima, dokumentima i profilom na jednom mestu.</p>
+                <a href="{% url 'doctor_profile' %}" class="button">Otvori moj profil</a>
+            {% else %}
+                <h1>Dobrodošli na Pronađi doktora</h1>
+                <p>Pronađite stručne doktore u vašoj blizini brzo i jednostavno.</p>
+                <a href="{% url 'pretraga' %}" class="button">Pretraži doktore</a>
+            {% endif %}
+        </div>
+
+        <!-- Vesti -->
+        <div>
+            <h2>Najnovije vesti</h2>
+            <div>
+                {% for v in vesti %}
+                <div style="display:flex; gap:12px; background:white; padding:12px; border-radius:8px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.05); align-items:flex-start;">
+                    {% if v.slika %}
+                        <img src="{{ v.slika.slika_link.url }}" alt="{{ v.naslov }}" style="width:100px; height:70px; object-fit:cover; border-radius:6px;">
+                    {% else %}
+                        <img src="{% static 'img/default-news.jpg' %}" alt="default news" style="width:100px; height:70px; object-fit:cover; border-radius:6px;">
+                    {% endif %}
+                    <div style="flex:1;">
+                        <div style="font-size:12px; color:#888; margin-bottom:4px;">{{ v.datum|date:"d.m.Y H:i" }}</div>
+                        <a href="{% url 'aktuelnost_detalj' v.id %}" style="font-weight:600; color:#1E40AF; font-size:14px;">{{ v.naslov }}</a>
+                        <p style="margin:4px 0 0 0; font-size:13px; color:#555;">{{ v.sadrzaj|truncatechars:80 }}</p>
+                    </div>
+                </div>
+                {% empty %}
+                    <p>Nema vesti za prikaz.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        {% if user_type == 'doktor' %}
+            <!-- Sledeći termini -->
+            <div class="sidebar-section">
+                <h4>Vaši sledeći termini</h4>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    {% for t in termini %}
+                    <div style="display:flex; flex-direction:column; background:#e0f7f0; padding:10px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+                        <div style="font-weight:600; color:#065f46; font-size:14px;">
+                            🕓 {{ t.pocetak|date:"d.m.Y H:i" }} - {{ t.kraj|date:"H:i" }}
+                        </div>
+                        <div style="font-size:13px; color:#333;">
+                            Status: <strong>{{ t.status|title }}</strong>
+                        </div>
+                        {% if t.pacijent %}
+                            <div style="font-size:13px; color:#555;">
+                                Pacijent: {{ t.pacijent.ime }} {{ t.pacijent.prezime }}
+                            </div>
+                        {% else %}
+                            <div style="font-size:13px; color:#999;">Bez pacijenta</div>
+                        {% endif %}
+                        {% if t.description %}
+                            <div style="font-size:12px; color:#666;">Napomena: {{ t.description|truncatechars:80 }}</div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                        <p>Nema predstojećih termina.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+        {% else %}
+            <!-- Top klinike -->
+            <div class="sidebar-section">
+                <h4>Top klinike</h4>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    {% for k in top_klinike %}
+                    <div style="display:flex; align-items:center; gap:10px; background:#f5f7ff; padding:10px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+                        {% if k.slika %}
+                            <img src="{{ k.slika.slika_link.url }}" alt="{{ k.naziv }}" style="width:50px; height:50px; object-fit:cover; border-radius:6px;">
+                        {% else %}
+                            <div style="width:50px; height:50px; background:#dbeafe; display:flex; align-items:center; justify-content:center; border-radius:6px; font-size:12px; color:#1E40AF;">{{ k.naziv|slice:":1" }}</div>
+                        {% endif %}
+                        <div style="flex:1;">
+                            <div style="font-weight:600; font-size:14px; color:#1E40AF;">{{ k.naziv }}</div>
+                            <div style="font-size:12px; color:#555;">{{ k.grad }}, {{ k.tip }}</div>
+                            <a href="" style="margin-top:4px; display:inline-block; font-size:12px; color:white; background:#007bff; padding:4px 8px; border-radius:4px;">Detaljnije</a>
+                        </div>
+                    </div>
+                    {% empty %}
+                        <p>Nema podataka</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Top doktori -->
+            <div class="sidebar-section">
+                <h4>Top doktori</h4>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    {% for d in top_doktori %}
+                    <div style="display:flex; align-items:center; gap:10px; background:#fff7f5; padding:10px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+                        {% if d.user.slika %}
+                            <img src="{{ d.user.slika.slika_link.url }}" alt="{{ d.user.ime }}" style="width:50px; height:50px; object-fit:cover; border-radius:50%;">
+                        {% else %}
+                            <div style="width:50px; height:50px; background:#fed7d7; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:12px; color:#b91c1c;">{{ d.user.ime|slice:":1" }}</div>
+                        {% endif %}
+                        <div style="flex:1;">
+                            <div style="font-weight:600; font-size:14px; color:#b91c1c;">Dr. {{ d.user.ime }} {{ d.user.prezime }}</div>
+                            <div style="font-size:12px; color:#555;">{{ d.specijalizacija }}</div>
+                            <a href="{% url 'doktor_javni' d.user.id %}" style="margin-top:4px; display:inline-block; font-size:12px; color:white; background:#b91c1c; padding:4px 8px; border-radius:4px;">Profil</a>
+                        </div>
+                    </div>
+                    {% empty %}
+                        <p>Nema podataka</p>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+
+{% include "includes/footer.html" %}
+
+</body>
+</html>

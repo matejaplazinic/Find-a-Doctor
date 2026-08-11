@@ -1,0 +1,418 @@
+<!--Mateja Plazinic 2022/0335-->
+{% load static %}
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pronađi doktora — Moj profil</title>
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}" >
+</head>
+
+<body>
+  {% include "includes/header.html" %}
+
+  <main class="container">
+    <div class="card">
+      <h2 class="h1">Moj profil</h2>
+
+      <div style="display:flex;gap:20px;align-items:flex-start">
+        <div style="width:160px;text-align:center;">
+          {% if pacijent.slika and pacijent.slika.slika_link %}
+            <img src="{{ pacijent.slika.slika_link.url }}" alt="Profilna slika"
+             style="width:140px;height:140px;border-radius:50%;object-fit:cover;">
+        {% else %}
+            <div class="avatar" style="width:140px;height:140px;font-size:36px;display:flex;align-items:center;justify-content:center;">
+            {{ pacijent.ime|default:"U"|first }}
+        </div>
+        {% endif %}
+
+        </div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:16px;">
+              <div id="profile-tabs" style="text-align: right; margin-bottom:16px;">
+                <button class="button" data-tab="data">Podaci</button>
+                <button class="button" data-tab="appointments">Termini</button>
+                <button class="button" data-tab="favorites">Omiljeni</button>
+                  <button class="button" id="togglePrescriptions">Recepti</button>
+              </div>
+
+          <!-- TAB: PODACI -->
+          <div id="tab-data">
+            <div id="pacijent-view">
+              <div><strong>Ime:</strong> {{ pacijent.ime }} {{ pacijent.prezime }}</div>
+              <div><strong>Email:</strong> {{ pacijent.email }}</div>
+              <div><strong>Telefon:</strong> {{ pacijent.telefon|default:"-" }}</div>
+              <div><strong>Medicinska istorija:</strong> {{ pacijent.medicinska_istorija|default:"-" }}</div>
+              <button type="button" class="button" id="enableEditBtn" style="margin-top: 10px">Promeni podatke</button>
+            </div>
+
+            <!-- Forma za izmenu -->
+            <form id="pacijent-edit" style="display:none" method="POST" enctype="multipart/form-data">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="edit_pacijent">
+              <div class="form-row"><label>Ime:</label><input type="text" name="ime" value="{{ pacijent.ime }}" required></div>
+              <div class="form-row"><label>Prezime:</label><input type="text" name="prezime" value="{{ pacijent.prezime }}"></div>
+              <div class="form-row"><label>Email:</label><input type="email" name="email" value="{{ pacijent.email }}" required></div>
+              <div class="form-row"><label>Telefon:</label><input type="text" name="telefon" value="{{ pacijent.telefon }}"></div>
+              <div class="form-row"><label>Medicinska istorija:</label><textarea name="medicinska_istorija">{{ pacijent.medicinska_istorija }}</textarea></div>
+              <div class="form-row">
+                <label>Profilna slika:</label>
+                <input type="file" name="slika" accept="image/*">
+              </div>
+
+              <button type="submit" class="button">Sačuvaj izmene</button>
+            </form>
+          </div>
+
+<div id="tab-appointments" style="display:none">
+  <h3 class="h1">Moji termini</h3>
+  {% if appointments %}
+    {% for t in appointments %}
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:20px;">
+          <div style="flex:1">
+            <strong>{{ t.lekar.user.ime }} {{ t.lekar.user.prezime }}</strong>
+            <div class="small">{{ t.pocetak|date:"d.m.Y H:i" }}</div>
+          <div class="small">{{ t.cena }} RSD</div>
+            <div class="small"
+                 style="color:
+                    {% if t.status == 'otkazan' %}red
+                    {% elif t.status == 'potvrđen' %}green
+                    {% elif t.status == 'zakazan' %}orange
+                    {% elif t.status == 'završen' %}blue
+                    {% else %}black{% endif %};
+                 ">
+              Status: {{ t.status }}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+
+    <div class="pagination" style="margin-top:15px; display:flex; justify-content:center; gap:8px;">
+  {% if appointments.has_previous %}
+    <a href="?tab=appointments&page={{ appointments.previous_page_number }}" class="button">Prethodna</a>
+  {% endif %}
+
+  <span style="align-self:center;">Strana {{ appointments.number }} od {{ appointments.paginator.num_pages }}</span>
+
+  {% if appointments.has_next %}
+    <a href="?tab=appointments&page={{ appointments.next_page_number }}" class="button">Sledeća</a>
+  {% endif %}
+</div>
+
+  {% else %}
+    <div class="small">Nemate zakazanih termina.</div>
+  {% endif %}
+</div>
+
+          <!-- TAB: OMILJENI -->
+          <div id="tab-favorites" style="display:none">
+              <h3 class="h1">Omiljeni doktori</h3>
+              {% if favorites %}
+                {% for o in favorites %}
+                  <div class="card" style="display:flex;align-items:center;justify-content:space-between;">
+                    <div>
+                      <strong>Dr. {{ o.lekar.user.ime }} {{ o.lekar.user.prezime }}</strong>
+                      <div class="small">{{ o.lekar.specijalizacija }}</div>
+                      {% if o.lekar.klinika %}<div class="small">{{ o.lekar.klinika.naziv }}</div>{% endif %}
+                    </div>
+                    <button class="remove-favorite" data-lekar-id="{{ o.lekar.id }}" style="background:none;border:none;font-size:28px;cursor:pointer;color:#e63946;position:relative;">
+                      &#10084;
+                      <span class="tooltip-text">Ukloni lekara iz omiljenih</span>
+                    </button>
+                    </div>
+                {% endfor %}
+              {% else %}
+                <div class="small">Nemate omiljenih doktora.</div>
+              {% endif %}
+            </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECEPTI -->
+    <div id="prescriptions-section" style="display:none; margin-top:15px;">
+  {% if prescriptions %}
+    <div class="recepti-lista">
+      {% for r in prescriptions %}
+        <div class="recept-card">
+          <div class="recept-header">
+            <span class="recept-id">Recept #{{ forloop.counter}}</span>
+            <span class="recept-datum">{{ r.datum|date:"d.m.Y" }}</span>
+          </div>
+          <p class="recept-doktor">Doktor: {{ r.lekar.user.ime }} {{ r.lekar.user.prezime }}</p>
+          <p class="recept-tekst">{{ r.tekst|truncatewords:20 }}</p>
+          <div class="recept-footer">
+            <button class="btn-detalji"
+              onclick="otvoriModal(
+                '{{ r.id }}',
+                '{{ r.lekar.user.ime }} {{ r.lekar.user.prezime }}',
+                '{{ r.datum|date:"d.m.Y" }}',
+                `{{ r.tekst|escapejs }}`,
+                '{% if r.slika and r.slika.slika_link %}{{ r.slika.slika_link.url }}{% else %}{% static "images/default_recept.jpg" %}{% endif %}'
+              )">
+            Detalji
+            </button>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="small">Nemate recepata.</div>
+  {% endif %}
+</div>
+
+<!-- Modal -->
+
+<div id="receptModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="zatvoriModal()">&times;</span>
+    <h3 id="modalTitle"></h3>
+    <p><strong>Datum:</strong> <span id="modalDatum"></span></p>
+    <p><strong>Doktor:</strong> <span id="modalDoktor"></span></p>
+    <p id="modalTekst"></p>
+    <img id="modalSlika" class="modal-slika" alt="Slika recepta">
+  </div>
+</div>
+
+
+  </main>
+
+  {% include "includes/footer.html" %}
+<style>
+    .recepti-lista {
+  display: flex;
+  flex-direction: column;
+
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.recept-card {
+  background: #f9fbfc;
+  border: 1px solid #e0e6ed;
+  border-radius: 12px;
+  padding: 15px 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  width: 100%;
+  max-width: 600px; /* <<< OGRANIČENA širina */
+}
+
+
+    .recept-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    .recept-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      color: #555;
+      border-bottom: 1px solid #e0e6ed;
+      padding-bottom: 5px;
+      margin-bottom: 10px;
+    }
+
+    .recept-id {
+      color: #007bff;
+    }
+
+    .recept-datum {
+      font-size: 0.9rem;
+      color: #888;
+    }
+
+    .recept-doktor {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      color: #333;
+    }
+
+    .recept-tekst {
+      font-size: 0.95rem;
+      color: #555;
+      line-height: 1.4;
+    }
+
+    .recept-footer {
+      margin-top: 10px;
+      text-align: right;
+    }
+    /* Dugme */
+.btn-detalji {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-detalji:hover {
+  background-color: #0056b3;
+}
+
+/* Modal stil */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  overflow: auto;
+  background-color: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+  background-color: #fff;
+  margin: 10% auto;
+  padding: 20px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.close {
+  color: #aaa;
+  float: right;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.close:hover {
+  color: #000;
+}
+
+.modal-slika {
+  width: 100%;
+  margin-top: 10px;
+  border-radius: 8px;
+}
+#tab-favorites {
+  max-width: 700px;  /* ograniči širinu cele sekcije */
+}
+.remove-favorite {
+  position: relative;
+  display: inline-block;
+  transition: transform 0.2s;
+}
+
+.remove-favorite:hover {
+  transform: scale(1.2); /* povećava srce na hover */
+}
+
+.tooltip-text {
+  visibility: hidden;
+  width: max-content;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 4px 8px;
+  position: absolute;
+  z-index: 10;
+  bottom: 120%; /* iznad dugmeta */
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.remove-favorite:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+    </style>
+  <script>
+    // Tab prikaz
+    function showTab(tab) {
+      document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+      document.getElementById('tab-' + tab).style.display = 'block';
+    }
+    //document.querySelectorAll('#profile-tabs button').forEach(btn => {
+    //  btn.addEventListener('click', () => showTab(btn.dataset.tab));
+    //});
+    document.addEventListener('DOMContentLoaded', () => showTab('data'));
+
+    // Prikaz forme za izmenu
+    document.getElementById('enableEditBtn').addEventListener('click', function() {
+      document.getElementById('pacijent-view').style.display = 'none';
+      document.getElementById('pacijent-edit').style.display = 'block';
+    });
+function otvoriModal(id, doktor, datum, tekst, slika) {
+  document.getElementById("modalTitle").textContent = "Recept #" + id;
+  document.getElementById("modalDatum").textContent = datum;
+  document.getElementById("modalDoktor").textContent = doktor;
+  document.getElementById("modalTekst").textContent = tekst;
+  document.getElementById("modalSlika").src = slika;
+  document.getElementById("receptModal").style.display = "block";
+}
+
+function zatvoriModal() {
+  document.getElementById("receptModal").style.display = "none";
+}
+
+window.onclick = function(event) {
+  const modal = document.getElementById("receptModal");
+  if (event.target === modal) {
+    zatvoriModal();
+  }
+};
+document.querySelectorAll('.remove-favorite').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const lekarId = this.dataset.lekarId;
+    const card = this.closest('.card');
+
+    fetch("{% url 'ukloni_omiljenog' %}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      body: `lekar_id=${lekarId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+      if(data.success) {
+        card.remove(); // uklanja karticu sa stranice
+      } else {
+        alert(data.error || 'Došlo je do greške');
+      }
+    })
+    .catch(err => console.error(err));
+  });
+});
+document.querySelectorAll('#profile-tabs button[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => showTab(btn.dataset.tab));
+});
+
+// Toggle za recepti (nezavisno)
+document.getElementById('togglePrescriptions').addEventListener('click', function() {
+  const section = document.getElementById('prescriptions-section');
+  section.style.display = (section.style.display === 'none' || section.style.display === '') ? 'block' : 'none';
+});
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const activeTab = params.get('tab');
+
+  if (activeTab === 'appointments') {
+    document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+    document.getElementById('tab-appointments').style.display = 'block';
+  }
+});
+</script>
+
+</body>
+
+</html>

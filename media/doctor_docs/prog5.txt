@@ -1,0 +1,104 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <ctype.h>
+#include <string.h>
+
+#define MEM_ALLOC(ptr) {\
+    if (!(ptr = malloc(sizeof(*ptr)))) {\
+        exit(0);\
+    }\
+}
+
+#define FILE_OPEN(file, name, mode) {\
+    if (!(file = fopen(name, mode))) {\
+        exit(0);\
+    }\
+}
+
+typedef struct student {
+    char id[10], name[31];
+    float hw1, hw2, coll, exam, pts;
+    int grade;
+} Student;
+
+typedef struct node {
+    Student s;
+    struct node *next;
+} Node;
+
+void studentId(char *id, char *name) {
+    id[0] = tolower(name[0]);
+    for(int i = strlen(name) - 1; i >= 0; i--) {
+        if (name[i] == ' ') {
+            id[1] = tolower(name[i + 1]);
+            break;
+        }
+    }
+    for (int i = 4; i < 8; i++) {
+        id[i] = id[i + 1];
+    }
+    id[8] = 'd';
+}
+
+float studentPts(float hw1, float hw2, float coll, float exam) {
+    float pts;
+    pts = hw1 + hw2 > 2 * hw2 ? hw1 + hw2 : 2 * hw2;
+    pts += coll + exam > exam * 50/30 ? coll + exam : exam * 50/30;
+    return pts;
+}
+
+int studentGrade(float pts) {
+    int grade;
+    grade = (ceil(pts) + 9) / 10;
+    if (grade < 5) {
+        grade = 5;
+    }
+    return grade;
+}
+
+Node* readStudents(char *fileName) {
+    Node *head = NULL, *tail = NULL, *temp = NULL;
+    Student s;
+    FILE *in;
+    FILE_OPEN(in, fileName, "r")
+    while (fscanf(in, "%[^,],%[^,],%f,%f,%f,%f\n", s.id, s.name, &s.hw1, &s.hw2, &s.coll, &s.exam) == 6) {
+        studentId(s.id, s.name);
+        s.pts = studentPts(s.hw1, s.hw2, s.coll, s.exam);
+        s.grade = studentGrade(s.pts);
+        MEM_ALLOC(temp)
+        temp->s = s;
+        temp->next = NULL;
+        if (!head) {
+            head = temp;
+        } else {
+            tail->next = temp;
+        }
+        tail = temp;
+    }
+    fclose(in);
+    return head;
+}
+
+void writeStudents(char *fileName, Node *head) {
+    Node *prev;
+    FILE *out;
+    FILE_OPEN(out, fileName, "w")
+    while (head) {
+        fprintf(out, "%s %6.2f %2d\n", head->s.id, head->s.pts, head->s.grade);
+        prev = head;
+        head = head->next;
+        free(prev);
+    }
+    fclose(out);
+}
+
+int main(int argc, const char *argv[]) {
+    Node *students;
+    if (argc < 3) {
+        exit(0);
+    }
+    students = readStudents(argv[1]);
+    writeStudents(argv[2], students);
+    return 0;
+}

@@ -1,0 +1,351 @@
+<!-- Milos Milinkovic 0396/2022 -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil doktora</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales-all.min.js"></script>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <style>
+        .slot.selected { background: #e6f4ff; border-color: var(--blue); color: var(--blue); }
+        .table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .table th, .table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        .table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px; }
+        .table th { background-color: #f5f5f5; font-weight: 600; }
+        .table tr:hover { background-color: #f9f9f9; }
+        .avatar { width: 140px; height: 140px; border-radius: 10px; background: #e9f1ff; color: var(--blue); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 36px; }
+        #profile-tabs { text-align: right; margin-bottom: 16px; }
+        #profile-tabs .button { margin-left: 8px; }
+        #calendar { max-width: 1000px; margin: 20px auto; height: 650px; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; overflow-y: auto; padding: 20px; }
+        .modal-content { position: relative; background: white; padding: 30px 40px; border-radius: 12px; width: 80%; max-width: 900px; max-height: 90vh; overflow-y: auto; text-align: left; box-shadow: 0 8px 20px rgba(0,0,0,0.25); display: flex; flex-direction: column; gap: 15px; }
+        .modal-content h3 { font-size: 24px; margin-bottom: 10px; }
+        .modal-content p { font-size: 16px; margin: 5px 0; }
+        .modal-content input[type="text"], .modal-content textarea { width: 100%; padding: 10px; font-size: 16px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; }
+        .modal-content textarea { min-height: 80px; resize: vertical; }
+        .modal-content button { margin: 10px 0; padding: 10px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; align-self: flex-start; }
+        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 32px; font-weight: bold; color: #333; cursor: pointer; }
+        .modal-close:hover { color: red; }
+        .fc-event-title, .fc-event-time { color: black !important; }
+        /* Dugme za otvaranje forme vesti */
+        .btn-add-news { background:blue; color:white; border:none; border-radius:6px; padding:10px 20px; cursor:pointer; }
+        .btn-add-news:hover { background:darkblue; }
+    </style>
+</head>
+<body>
+<!-- INCLUDE HEADER SA APP NIVOA -->
+    {% include "includes/header.html" %}
+
+    <main class="container">
+        <div class="card">
+            <h2 class="h1">Moj profil</h2>
+        {% if not verifikovan %}
+    <div style="background-color:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:10px 15px; border-radius:6px; margin-bottom:15px;">
+        🔔 Vaš profil još uvek nije verifikovan od strane administratora.
+    </div>
+{% endif %}
+        {% if lekar.klinika and not klinika_verifikovana %}
+<div style="background-color:#e7f3fe; color:#0c5460; border:1px solid #b8daff; padding:10px 15px; border-radius:6px; margin-bottom:15px;">
+    🏥 Klinika <strong>{{ lekar.klinika.naziv }}</strong> još uvek nije verifikovana od strane administratora.
+</div>
+{% endif %}
+
+
+            <div style="display:flex;gap:20px;">
+                <div style="width:160px;">
+                    <div class="avatar">
+                        <div style="width:160px;">
+        {% if lekar.user.slika %}
+            <img src="{{ lekar.user.slika.slika_link.url }}" alt="Profilna slika"
+                 style="width:140px; height:140px; border-radius:10px; object-fit:cover;">
+        {% else %}
+            <div class="avatar">{{ lekar.user.ime|first }}</div>
+        {% endif %}
+    </div>
+
+                </div>
+            </div>
+            <div style="flex:1;">
+                <!-- Dugmad sa data-tab -->
+                <div id="profile-tabs">
+                    <button type="button" class="button" data-tab="data">Podaci</button>
+                    <button type="button" class="button" data-tab="calendar">Kalendar</button>
+                    <button type="button" class="button" data-tab="history">Istorija</button>
+                    <button type="button" class="button" data-tab="news">Vesti</button>
+                </div>
+
+                <!-- Podaci -->
+                <div id="tab-data">
+                    <h3 class="h1">Podaci</h3>
+                    <div id="doctor-view">
+                        <div class="form-row"><label>Ime:</label><div>{{ lekar.user.ime }} {{ lekar.user.prezime }}</div></div>
+                        <div class="form-row"><label>Email:</label><div>{{ lekar.user.email }}</div></div>
+                        <div class="form-row"><label>Klinika:</label><div>{% if lekar.klinika %}{{ lekar.klinika.naziv }}{% else %}N/A{% endif %}</div></div>
+                        <div class="form-row"><label>Telefon:</label><div>{% if lekar.user.telefon %}{{ lekar.user.telefon }}{% else %}-{% endif %}</div></div>
+                        <div class="form-row"><label>Specijalizacija:</label><div>{{ lekar.specijalizacija }}</div></div>
+                        <div class="form-row"><label>Cena pregleda:</label>
+                            <div id="doctor-price-view">{{ lekar.cena }} RSD</div>
+                        </div>
+                        <div class="form-row"><label>Dokumenti:</label>
+                            <div>
+                                {% for doc in dokumenti %}
+                                    <a class="link" href="{{ doc.file.url }}" target="_blank">{{ doc.file.name }}</a>{% if not forloop.last %}, {% endif %}
+                                {% empty %}Nema dokumenata{% endfor %}
+                            </div>
+                        </div>
+                        <button type="button" class="button" id="enableEditBtn">Promeni podatke</button>
+                    </div>
+
+                    <form id="doctor-edit" style="display:none" method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="edit_doctor">
+                        <div class="form-row"><label>Ime i prezime:</label><input type="text" name="doc_name" value="{{ lekar.user.ime }} {{ lekar.user.prezime }}" required></div>
+                        <div class="form-row"><label>Email:</label><input type="email" name="doc_email" value="{{ lekar.user.email }}" required></div>
+                        <div class="form-row"><label>Klinika:</label>
+                            <select name="doc_clinic_id" required>
+                                {% for k in sve_klinike %}
+                                    <option value="{{ k.id }}" {% if lekar.klinika == k %}selected{% endif %}>{{ k.naziv }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-row"><label>Telefon:</label><input type="text" name="telefon_" value="{{ lekar.user.telefon }}" required></div>
+                        <div class="form-row"><label>Specijalizacija:</label><input type="text" name="doc_spec" value="{{ lekar.specijalizacija }}" required></div>
+                        <div class="form-row">
+                            <label>Cena pregleda (RSD):</label>
+                            <input type="number" name="doc_cena" value="{{ lekar.cena }}" min="0" step="0.01" required>
+                        </div>
+                        <div class="form-row">
+                            <label>Profilna slika:</label>
+                            <input type="file" name="profile_image" accept="image/*">
+                        </div>
+                        <div class="form-row"><label>Priloži dokumente:</label><input type="file" name="doc_files" multiple></div>
+                        <button type="submit" class="button">Sačuvaj izmene</button>
+                    </form>
+                </div>
+            
+                <div id="tab-calendar" style="display:none">
+                    <h3 class="h1">Kalendar termina</h3>
+                    <div id="calendar"></div>
+                    <div id="eventModal" class="modal">
+                        <div class="modal-content">
+                            <span class="modal-close" onclick="closeModal()">&times;</span>
+                            <h3>Detalji termina</h3>
+                            <p id="modal-title"></p>
+                            <p id="modal-pacijent"></p>
+                            <p id="modal-vreme"></p>
+                            <p id="modal-status"></p>
+                            <p id="modal-prescription"></p>
+                            <p id="modal-description"></p>
+                            <form method="POST">
+                                {% csrf_token %}
+                                <input type="hidden" name="termin_id" id="modal-termin-id">
+                                <button type="submit" class="button" name="action" value="accept">Potvrdi</button>
+                                <button type="submit" class="button" name="action" value="reject">Otkazi</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Istorija -->
+                <div id="tab-history" style="display:none">
+                    <h3 class="h1">Istorija</h3>
+                    <table class="table">
+                        <tr>
+                            <th>Pacijent</th>
+                            <th>Datum</th>
+                            <th>Vreme</th>
+                            <th>Status</th>
+                            <th>Recept</th>
+                            <th>Opis posete</th>
+                            <th>Akcija</th>
+                        </tr>
+                        {% for t in istorija %}
+                        <tr>
+                            <td>{{ t.pacijent.ime }} {{ t.pacijent.prezime }}</td>
+                            <td>{{ t.pocetak|date:"Y-m-d" }}</td>
+                            <td>{{ t.pocetak|time:"H:i" }} - {{ t.kraj|time:"H:i" }}</td>
+                            <td>{{ t.status }}</td>
+                            <td id="prescription-{{ t.id }}">{{ t.prescription|default:"-" }}</td>
+                            <td id="description-{{ t.id }}">{{ t.description|default:"-" }}</td>
+                            <td>
+                                <button class="button" onclick="openHistoryForm({{ t.id }}, '{{ t.prescription|escapejs }}', '{{ t.description|escapejs }}')">Izmeni</button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="8">Nema završene istorije</td></tr>
+                        {% endfor %}
+                    </table>
+
+                    <div id="historyModal" class="modal">
+                        <div class="modal-content">
+                            <span class="modal-close" onclick="closeHistoryModal()">&times;</span>
+                            <h3>Izmeni pregled</h3>
+                            <form method="POST" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <input type="hidden" name="termin_id" id="history-termin-id">
+                                <div class="form-row">
+                                    <label>Recept - tekst:</label>
+                                    <textarea name="recept_tekst" id="history-recept-tekst" rows="3"></textarea>
+                                </div>
+                                <div class="form-row">
+                                    <label>Recept - slika (opcionalno):</label>
+                                    <input type="file" name="recept_slika" id="history-recept-slika">
+                                </div>
+                                <div class="form-row">
+                                    <label>Opis posete:</label>
+                                    <textarea name="description" id="history-description" rows="3"></textarea>
+                                </div>
+                                <button type="submit" class="button" name="action" value="finish">Sačuvaj</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vesti -->
+                <div id="tab-news" style="display:none">
+                    <h3 class="h1">Vesti</h3>
+
+                    <!-- Tabela postojećih vesti -->
+                    <div style="overflow-x:auto; margin-bottom:20px;">
+                        <table class="table">
+                            <tr>
+                                <th>Naslov</th>
+                                <th>Datum</th>
+                                <th>Rezime</th>
+                                <th>Slika</th>
+                            </tr>
+                            {% for v in vesti %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'aktuelnost_detalj' v.id %}" target="_blank">{{ v.naslov }}</a>
+                                </td>
+                                <td>{{ v.datum|date:"Y-m-d H:i" }}</td>
+                                <td>{{ v.sadrzaj|truncatechars:50 }}</td>
+                                <td>
+                                    {% if v.slika %}
+                                        <img src="{{ v.slika.slika_link.url }}" alt="Slika vesti" style="max-width:80px; border-radius:6px;">
+                                    {% else %}
+                                        Nema slike
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5">Nema vesti</td></tr>
+                            {% endfor %}
+                        </table>
+                    </div>
+
+                    <!-- Dugme za otvaranje forme -->
+                    <button class="btn-add-news" onclick="openNewsForm()"> <b>+</b> Dodaj novu vest</button>
+
+                    <!-- Modal za dodavanje vesti -->
+                    <div id="newsModal" class="modal">
+                        <div class="modal-content">
+                            <span class="modal-close" onclick="closeNewsForm()">&times;</span>
+                            <h3>Dodaj novu vest</h3>
+                            <form method="POST" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="add_news">
+                                <input type="text" name="news_title" placeholder="Naslov vesti" required>
+                                <br><br>
+                                <textarea name="news_content" placeholder="Sadržaj vesti" required></textarea>
+                                <br><br>
+                                <label for="news_image">Odaberi sliku:</label>
+                                <input type="file" id="news_image" name="news_image">
+                                <br><br>
+                                <button type="submit" class="button">Dodaj vest</button>
+                            </form>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+</main>
+
+{% include "includes/footer.html" %}
+
+<script>
+function showTab(tab) {
+    document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+    document.getElementById('tab-' + tab).style.display = 'block';
+    localStorage.setItem('activeTab', tab);
+
+    if (tab === 'calendar' && !window.calendarInitialized) {
+        const calendarEl = document.getElementById('calendar');
+        if (!calendarEl) return;
+        var events = {{ events_json|default:'[]'|safe }};
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'sr-latn',
+            headerToolbar: { left:'prev,next today', center:'title', right:'dayGridMonth,timeGridWeek,timeGridDay,listWeek' },
+            businessHours: { daysOfWeek:[1,2,3,4,5], startTime:'07:00', endTime:'09:00' },
+            events: events,
+            eventClick: function(info) {
+                document.getElementById('modal-title').innerText = 'Naslov: ' + info.event.title;
+                document.getElementById('modal-pacijent').innerText = 'Pacijent: ' + (info.event.extendedProps.pacijent || 'N/A');
+                document.getElementById('modal-vreme').innerText = 'Vreme: ' + info.event.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + ' - ' + (info.event.end ? info.event.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'N/A');
+                document.getElementById('modal-status').innerText = 'Status: ' + (info.event.extendedProps.status || 'N/A');
+                document.getElementById('modal-prescription').innerText = 'Recept: ' + (info.event.extendedProps.prescription || '-');
+                document.getElementById('modal-description').innerText = 'Opis: ' + (info.event.extendedProps.description || '-');
+                document.getElementById('modal-termin-id').value = info.event.id;
+
+                const now = new Date();
+                const endTime = info.event.end ? new Date(info.event.end) : now;
+                document.querySelectorAll('#eventModal button[name="action"]').forEach(btn => {
+                    btn.style.display = endTime < now ? 'none' : 'inline-block';
+                });
+
+                document.getElementById('eventModal').style.display = 'flex';
+            }
+        });
+        calendar.render();
+        window.calendarInitialized = true;
+    }
+}
+
+function enableDoctorEdit() {
+    document.getElementById('doctor-view').style.display = 'none';
+    document.getElementById('doctor-edit').style.display = 'block';
+}
+
+function closeModal() { document.getElementById('eventModal').style.display = 'none'; }
+function openHistoryForm(id, prescription, description) {
+    document.getElementById('history-termin-id').value = id;
+    document.getElementById('history-recept-tekst').value = prescription !== '-' ? prescription : '';
+    document.getElementById('history-description').value = description !== '-' ? description : '';
+    document.getElementById('historyModal').style.display = 'flex';
+}
+function closeHistoryModal() { document.getElementById('historyModal').style.display = 'none'; }
+
+function openNewsForm() { document.getElementById('newsModal').style.display = 'flex'; }
+function closeNewsForm() { document.getElementById('newsModal').style.display = 'none'; }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const savedTab = localStorage.getItem('activeTab') || 'data';
+    showTab(savedTab);
+    window.calendarInitialized = false;
+
+    document.querySelectorAll('button[data-tab]').forEach(btn => {
+        btn.addEventListener('click', () => showTab(btn.dataset.tab));
+    });
+
+    document.getElementById('enableEditBtn').addEventListener('click', enableDoctorEdit);
+
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', () => {
+            const activeTab = [...document.querySelectorAll('[id^="tab-"]')].find(el => el.style.display !== 'none').id.replace('tab-', '');
+            localStorage.setItem('activeTab', activeTab);
+        });
+    });
+});
+</script>
+</body>
+</html>

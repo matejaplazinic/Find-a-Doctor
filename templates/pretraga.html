@@ -1,0 +1,189 @@
+<!--Mateja Plazinic 2022/0335-->
+{% load static %}
+<!doctype html>
+<html lang="sr">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pronađi doktora — Pretraga</title>
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+</head>
+
+<body>
+  {% include "includes/header.html" %}
+
+  <main class="container">
+    <div class="card">
+      <h2 class="h1">Pretraga doktora i klinika</h2>
+
+      <form method="get" action="{% url 'pretraga' %}" style="display:flex; flex-direction:column; gap:10px;">
+        <!-- Glavna pretraga -->
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input name="q" class="input" placeholder="Unesite ime doktora ili klinike..." value="{{ request.GET.q }}">
+          <button type="submit" class="button">Pretraži</button>
+          <button type="button" id="filter-toggle" class="button" style="background:#6c757d;">Filter</button>
+        </div>
+
+        <!-- Filter polja -->
+        <div id="filter-fields" style="display:none; margin-top:10px; gap:10px; flex-wrap:wrap;">
+          <input type="number" name="min_cena" placeholder="Minimalna cena" value="{{ request.GET.min_cena }}">
+          <input type="number" name="max_cena" placeholder="Maksimalna cena" value="{{ request.GET.max_cena }}">
+
+          <select name="specijalizacija">
+            <option value="">Izaberi specijalizaciju</option>
+            <option value="kardiolog" {% if request.GET.specijalizacija == "kardiolog" %}selected{% endif %}>Kardiolog</option>
+            <option value="dermatolog" {% if request.GET.specijalizacija == "dermatolog" %}selected{% endif %}>Dermatolog</option>
+            <option value="logoped" {% if request.GET.specijalizacija == "logoped" %}selected{% endif %}>Logoped</option>
+            <option value="neurolog" {% if request.GET.specijalizacija == "neurolog" %}selected{% endif %}>Neurolog</option>
+            <option value="internista" {% if request.GET.specijalizacija == "internista" %}selected{% endif %}>Internista</option>
+            <option value="pedijatar" {% if request.GET.specijalizacija == "pedijatar" %}selected{% endif %}>Pedijatar</option>
+          </select>
+          <input type="number" step="0.1" name="min_ocena" placeholder="Minimalna ocena" value="{{ request.GET.min_ocena }}">
+          <input type="number" step="0.1" name="max_ocena" placeholder="Maksimalna ocena" value="{{ request.GET.max_ocena }}">
+
+            {% if request.user.is_authenticated  %}
+            <label style="display:flex; align-items:center; gap:5px;">
+    <input type="checkbox" name="sort_po_lokaciji" value="1"
+        {% if request.GET.sort_po_lokaciji %}checked{% endif %}>
+    Pretraga po najbližoj lokaciji
+</label>
+        {% endif %}
+          <button type="submit" class="button" style="background:#28a745;">Primeni filter</button>
+        </div>
+      </form>
+
+      {% if rezultati %}
+  <h3 style="margin-top:20px;">
+    {% if query %}Rezultati za: "<em>{{ query }}</em>"{% else %}Rezultati pretrage{% endif %}
+  </h3>
+
+  <div style="margin-top:10px;">
+    {% for lekar in rezultati %}
+      <div class="card" style="margin-top:10px;">
+        <div style="display:flex;align-items:center;gap:20px;">
+          {% if lekar.user.slika and lekar.user.slika.slika_link %}
+            <img src="{{ lekar.user.slika.slika_link.url }}" alt="Slika doktora"
+                 style="width:80px;height:80px;border-radius:50%;object-fit:cover;">
+          {% else %}
+            <div class="avatar" style="width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ddd;">
+              {{ lekar.user.ime|first }}
+            </div>
+          {% endif %}
+          <div style="flex:1;">
+            <strong>Dr. {{ lekar.user.ime }} {{ lekar.user.prezime }}</strong><br>
+            <span>{{ lekar.specijalizacija|default:"-" }}</span><br>
+            {% if lekar.klinika %}
+              <small>Klinika: {{ lekar.klinika.naziv }}</small>
+            {% endif %}
+            <div style="margin-top:10px; display:flex; gap:10px;">
+              <div style="margin-top:5px; font-size:0.9rem; color:#007bff; display:inline-flex; align-items:center; gap:3px;">
+                <span>{{ lekar.prosecna_ocena|default:"-" }} ★</span>
+                <span>{{ lekar.cena|default:"-" }} RSD</span>
+              </div>
+              <a href="{% url 'doktor_javni' lekar.user_id %}" class="button" style="padding:5px 10px; background:#007bff; color:white; border-radius:5px; text-decoration:none;">Profil</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- PAGINACIJA -->
+  {% if page_obj.has_other_pages %}
+    <div style="text-align:center; margin-top:20px;">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="button">Prethodna</a>
+      {% endif %}
+
+      <span style="margin:0 10px;">Stranica {{ page_obj.number }} od {{ page_obj.paginator.num_pages }}</span>
+
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="button">Sledeća</a>
+      {% endif %}
+    </div>
+  {% endif %}
+{% else %}
+  <p style="margin-top:20px;">Nema rezultata za vašu pretragu.</p>
+{% endif %}
+
+    </div>
+{% if request.user.is_authenticated %}
+    <div class="card">
+      <h3 class="h1">Mapa</h3>
+
+       <div id="map" style="height:400px;"></div>
+    </div>
+    {% else %}
+    <div class="card map-section" style="margin-top:24px">
+    <div class="small">Morate biti ulogovani da biste imali funkcionalnosti mape.</div>
+    <br>
+    <a href="{% url 'login_view' %}" class="button" id="submit-button">Login</a>
+  </div>
+{% endif %}
+
+  </main>
+
+  {% include "includes/footer.html" %}
+  <script>
+    document.getElementById('filter-toggle').addEventListener('click', function() {
+        const f = document.getElementById('filter-fields');
+        f.style.display = f.style.display === 'none' ? 'flex' : 'none';
+    });
+
+    // Automatski prikaži filter ako je neki parametar popunjen
+    window.addEventListener('DOMContentLoaded', () => {
+        const hasFilter =
+            '{{ request.GET.min_cena }}' || '{{ request.GET.max_cena }}' ||
+            '{{ request.GET.specijalizacija }}' || '{{ request.GET.lokacija }}' ||
+            '{{ request.GET.min_ocena }}' || '{{ request.GET.max_ocena }}' ||
+            '{{ request.GET.opstina }}';
+        if (hasFilter) {
+            document.getElementById('filter-fields').style.display = 'flex';
+        }
+    });
+  </script>
+<script>
+function initMap() {
+    console.log("Pacijent koordinate:", "{{ pacijent_lat }}", "{{ pacijent_long }}");
+    const pacijent = {
+    lat: parseFloat("{{ pacijent_lat|default:'44.8176' }}".replace(",", ".")),
+    lng: parseFloat("{{ pacijent_long|default:'20.4569' }}".replace(",", "."))
+};
+
+    const map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 13,
+        center: pacijent,
+    });
+
+    // Marker za pacijenta
+    new google.maps.Marker({
+        position: pacijent,
+        map: map,
+        title: "Vaša lokacija",
+        icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+    });
+
+    // Markeri za klinike
+    {% for klinika in klinike_coords %}
+        {% if klinika.latitude and klinika.longitude %}
+            new google.maps.Marker({
+                position: { lat: parseFloat("{{ klinika.latitude }}".replace(",", ".")), lng: parseFloat("{{ klinika.longitude }}".replace(",", ".")) },
+                map: map,
+                title: "{{ klinika.naziv }}",
+                icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+            });
+        {% endif %}
+    {% endfor %}
+}
+</script>
+
+<!-- Google Maps JS -->
+<script async
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCxNTpPPBbPpHlWgcQyQArNOsNfIDX3pwE&callback=initMap" defer>
+</script>
+<style>
+    .map-section { padding: 20px; background: #f9fafb; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+</style>
+</body>
+</html>

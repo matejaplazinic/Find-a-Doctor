@@ -1,0 +1,92 @@
+package org.example;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Main {
+
+    public Main() throws SQLException {
+    }
+
+    public static void main(String[] args) {
+        System.out.println("Pokušavam da dohvata hotele...");
+
+        try {
+            Connection conn = DatabaseConnection.getInstance().getConnection();
+
+            PregledPopujenosti();
+
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // popunjava teabelu bolnica stanje
+    // isprazni je pa za svaki datum kada je bar 1 pacijent
+    //primljen na bolnicko ljecenje dodaje
+    static void PregledPopujenosti() {
+
+        try (Connection conn = DatabaseConnection.getInstance().getConnection()) {
+            String deleteQ = "delete from BOLNICA_STANJE where 1 = 1";
+
+            try (PreparedStatement stmt = conn.prepareStatement(deleteQ)) {
+                stmt.executeUpdate();
+            }
+
+            String sql = """
+                    select IDBol, h.DatumPri, count(*) as g4,
+                                        (select count(*)
+                                         from Hospitalizacija h1 join Pacijent k on (k.IDPac = h1.IDPac)
+                                         where h1.IDBol = h.IDBol and h1.DatumPri = h.DatumPri
+                                         and k.GodineStarosti < 18
+                                        ) as g1,
+                                        (select count(*)
+                                         from Hospitalizacija h1 join Pacijent k on (k.IDPac = h1.IDPac)
+                                         where h1.IDBol = h.IDBol and h1.DatumPri = h.DatumPri
+                                         and k.GodineStarosti >= 18 and k.GodineStarosti <=65
+                                        ) as g2,
+                                        (select count(*)
+                                         from Hospitalizacija h1 join Pacijent k on (k.IDPac = h1.IDPac)
+                                         where h1.IDBol = h.IDBol and h1.DatumPri = h.DatumPri
+                                         and k.GodineStarosti >= 66
+                                        ) as g3
+                    from Hospitalizacija h
+                    group by h.IDBol,h.DatumPri
+                    """;
+
+
+            try (PreparedStatement ptmt = conn.prepareStatement(sql);
+                 ResultSet rs =ptmt.executeQuery()) {
+                 String insertSql =
+                         "insert into BOLNICA_STANJE(IDBol,Datum,BrojHospitalizovanih,BrojDjece,BrojSrednjih,BrojOdraslih) values (?,?,?,?,?,?)";
+                 while (rs.next()) {
+                    System.out.println(rs.getInt(1) + "  " + rs.getString(2) + "  " +
+                            rs.getInt(3) + "  " + rs.getInt(4) + "  " + rs.getInt(5) + "  " + rs.getInt(6) + "  ");
+                    try (PreparedStatement p2 = conn.prepareStatement(insertSql)){
+                        p2.setInt(1,rs.getInt(1));
+                        p2.setString(2,rs.getString(2));
+                        p2.setInt(3,rs.getInt(3));
+                        p2.setInt(4,rs.getInt(4));
+                        p2.setInt(5,rs.getInt(5));
+                        p2.setInt(6,rs.getInt(6));
+                        int ret = p2.executeUpdate();
+                        if (ret == 0) {
+                            System.out.println("greska");
+                            return;
+                        }
+
+                    }
+                 }
+            }
+
+        }
+        catch(SQLException e){
+
+        }
+
+    }
+
+
+}
